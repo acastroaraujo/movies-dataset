@@ -2,7 +2,6 @@
 # packages ----------------------------------------------------------------
 
 library(tidyverse)
-library(here)
 library(glue)
 library(httr)
 library(rvest)
