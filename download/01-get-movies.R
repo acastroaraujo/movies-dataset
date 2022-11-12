@@ -1,11 +1,13 @@
 
+# Note. THE WHOLE THING SEEMS CAPPED AT 5000 USERS, THIS MEANS THAT REALLY POPULAR MOVIES HAVE MASSIVE MISSING DATA.
+
+
 # packages ----------------------------------------------------------------
 
 library(tidyverse)
-library(glue)
 library(httr)
+library(glue)
 library(rvest)
-library(janitor)
 library(progress)
 
 # helper function ---------------------------------------------------------
@@ -18,7 +20,7 @@ scraper_movie <- function(path) {
   
   repeat {
     
-    website <- RETRY("GET", glue("https://letterboxd.com/{path}/ratings/page/{n}"))
+    website <- httr::RETRY("GET", glue::glue("https://letterboxd.com{path}ratings/page/{n}"))
     stopifnot(httr::status_code(website) == 200)
     website <- httr::content(website)
     
@@ -27,17 +29,17 @@ scraper_movie <- function(path) {
     
     if (is_empty(groups)) break
     
-    output <- append(output, list(map_df(groups, user_chunk)))
+    output <- append(output, list(purrr::map_df(groups, user_chunk)))
     
-    cat(glue("{path}, page: {n}\r"))
+    cat(glue::glue("{path}, page: {n}\r"))
     Sys.sleep(runif(1, 1, 3))
     
     n <- n + 1
     
   }
   
-  df <- bind_rows(output) |> 
-    rename(user = title)
+  df <- dplyr::bind_rows(output) |> 
+    dplyr::rename(user = title, user_href = href)
   
   df$data_film_slug <- path
   
@@ -48,21 +50,27 @@ scraper_movie <- function(path) {
 user_chunk <- function(g) {
   
   rating <- g |> 
-    html_elements("h2") |> 
-    html_text() |> 
-    str_squish()
+    rvest::html_elements("h2") |> 
+    rvest::html_text() |> 
+    stringr::str_squish()
   
   users <- g |> 
-    html_elements(".avatar") |> 
-    html_attrs() |> 
-    bind_rows() |> 
-    select("href", "title")
+    rvest::html_elements(".avatar") |> 
+    rvest::html_attrs() |> 
+    dplyr::bind_rows() |> 
+    dplyr::select("href", "title")
   
   users$rating <- rating
   
   return(users)
   
 }
+
+## i think big movies are capped at 5000 !?
+ews <- scraper_movie("/film/eyes-wide-shut/")
+
+
+
 
 
 # download ----------------------------------------------------------------
@@ -94,6 +102,16 @@ while (length(left) > 0) {
   Sys.sleep(runif(1, 1, 3))
   
 }
+
+output <- dir(outfolder, full.names = TRUE) |> 
+  map(read_rds)
+
+error_index <- output |> 
+  map_lgl(\(x) any(class(x) == "try-error")) 
+
+bind_rows(output[!error_index]) |> View()
+
+
 
 
 
