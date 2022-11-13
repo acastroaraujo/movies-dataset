@@ -19,7 +19,50 @@ knitr::opts_chunk$set(
 
 The `movies-dataset` repository contains data scraped from <https://letterboxd.com/>
 
+The main datasets includes some `metadata.rds` that was later used to download individual level ratings for some movies, contained in `ratings_subset.rds`.
+
+The number of individual level ratings is capped at 5000 users, so we remove all movies that have 5000 users under the presumption that they are incomplete. This means that we drop all popular movies and end up using *niche movies* instead.
+
+```{r, message=FALSE}
+library(tidyverse)
+
+metadata <- read_rds("download/metadata.rds")
+ratings <- read_rds("download/ratings_subset.rds")
+
+glimpse(metadata)
+glimpse(ratings)
+```
+
+Number of movies in the subset:
+
+```{r}
+length(unique(ratings$data_film_slug))
+```
+
+Number of users in the subset:
+
+```{r}
+length(unique(ratings$user_href))
+```
+
+Example:
+
+```{r, message=FALSE}
+ratings |> 
+  nest(!data_film_slug) |> 
+  slice_sample(n = 15) |> 
+  unnest(data) |> 
+  left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
+  ggplot(aes(rating)) + 
+  geom_bar(width = 1/5) + 
+  facet_wrap(~alt, ncol = 3)
+```
+
 ------------------------------------------------------------------------
+
+*Maybe we can fix the user cap by scrapping individual users instead of individual movies?*
+
+*We should also add other types of metadata per movie, like date and genre.*
 
 *Note, there's currently an API in beta. We should consider applying for this so that the data becomes "legal."*
 

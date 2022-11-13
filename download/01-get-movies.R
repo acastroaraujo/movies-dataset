@@ -67,11 +67,7 @@ user_chunk <- function(g) {
 }
 
 ## i think big movies are capped at 5000 !?
-ews <- scraper_movie("/film/eyes-wide-shut/")
-
-
-
-
+## ews <- scraper_movie("/film/eyes-wide-shut/")
 
 # download ----------------------------------------------------------------
 
@@ -90,7 +86,7 @@ pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)\n", total = l
 
 while (length(left) > 0) { 
   
-  x <- sample(left, 1)
+  x <- left[length(left)] ## starting at the end assures that the most popular movies are scraped last
   output <- try(scraper_movie(movies[[x]]))
   
   output$data_film_id <- x
@@ -109,10 +105,33 @@ output <- dir(outfolder, full.names = TRUE) |>
 error_index <- output |> 
   map_lgl(\(x) any(class(x) == "try-error")) 
 
-bind_rows(output[!error_index]) |> View()
+df_index <- output |> 
+  map_lgl(is.data.frame)
 
+el <- bind_rows(output[!error_index & df_index])
 
+el <- el |> 
+  group_by(data_film_id) |>
+  filter(n() < 5e3) |> 
+  ungroup()
 
+rating_replace <- c(
+  "½" = 0.5,
+  "★" = 1,
+  "★½" = 1.5,
+  "★★" = 2,
+  "★★½" = 2.5,
+  "★★★" = 3,
+  "★★★½" = 3.5,
+  "★★★★" = 4,
+  "★★★★½" = 4.5,
+  "★★★★★" = 5
+)
 
+el <- el |> 
+  rename(stars = rating) |> 
+  mutate(rating = rating_replace[stars]) |> 
+  mutate(data_film_id = as.integer(data_film_id))
 
+write_rds(el, "download/ratings_subset.rds", compress = "gz")
 
