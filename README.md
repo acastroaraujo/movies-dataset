@@ -6,79 +6,82 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
+``` r
+library(tidyverse)
+```
+
 The `movies-dataset` repository contains data scraped from
 <https://letterboxd.com/>
 
-The main datasets includes some `metadata.rds` that was later used to
-download individual level ratings for some movies, contained in
-`ratings_subset.rds`.
-
-The number of individual level ratings is capped at 5000 users, so we
-remove all movies that have 5000 users under the presumption that they
-are incomplete. This means that we drop all popular movies and end up
-using *niche movies* instead.
+`download/00-get-users.R` creates the `users.rds` file, which contains
+user-level information on the 7,500 most popular users of all time.
 
 ``` r
-library(tidyverse)
-
-metadata <- read_rds("download/metadata.rds")
-ratings <- read_rds("download/ratings_subset.rds")
-
-glimpse(metadata)
-#> Rows: 216,000
+users <- read_rds("download/users.rds")
+glimpse(users)
+#> Rows: 7,500
 #> Columns: 6
-#> $ data_film_slug         <chr> "/film/parasite-2019/", "/film/joker-2019/", "/…
-#> $ data_film_id           <chr> "426406", "406775", "51568", "348914", "475370"…
-#> $ data_cache_busting_key <chr> "957fa8f5", "382688a5", "f1d3d7f5", "c51f1bf5",…
-#> $ data_average_rating    <dbl> 4.58, 3.89, 4.29, 4.07, 4.05, 4.29, 3.85, 4.19,…
-#> $ alt                    <chr> "Parasite", "Joker", "Fight Club", "The Batman"…
-#> $ src                    <chr> "https://s.ltrbxd.com/static/img/empty-poster-7…
-glimpse(ratings)
-#> Rows: 570,191
-#> Columns: 6
-#> $ user_href      <chr> "/demidelanuit/", "/missamorydahl/", "/domkid/", "/vvas…
-#> $ user           <chr> "DemiDeLaNuit", "missamorydahl", "Domkid", "vvasteras",…
-#> $ stars          <chr> "★★★★★", "★★★★★", "★★★★★", "★★★★½", "★★★★½", "★★★★½", "…
-#> $ data_film_slug <chr> "/film/princesa/", "/film/princesa/", "/film/princesa/"…
-#> $ data_film_id   <int> 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1…
-#> $ rating         <dbl> 5.0, 5.0, 5.0, 4.5, 4.5, 4.5, 4.0, 4.0, 4.0, 4.0, 4.0, …
+#> $ name    <chr> "karsten", "Lucy", "davidehrlich", "Jay", "SilentDawn", "matt …
+#> $ reviews <int> 1271, 1729, 2257, 1367, 2561, 5336, 1167, 2974, 624, 561, 2076…
+#> $ watched <int> 1671, 2487, 2579, 1144, 4758, 5367, 2573, 4659, 800, 2479, 402…
+#> $ lists   <dbl> 53, 128, 53, 89, 126, 26, 173, 31, 17, 17, 26, 90, 14, 168, 18…
+#> $ likes   <int> 2365, 7557, 81, 21762, 21930, 7338, 11042, 6694, 1009, 7130, 3…
+#> $ href    <chr> "/kurstboy/", "/deathproof/", "/davidehrlich/", "/jay/", "/sil…
+```
+
+The information contain in the `href` variable was then used to scrape
+ratings-per user with the `download/01-get-ratings-from-users.R` script.
+This data is stored in the `user_ratings.rds` file.
+
+``` r
+user_ratings <- read_rds("download/user_ratings.rds")
+glimpse(user_ratings)
+#> Rows: 1,932,364
+#> Columns: 5
+#> $ href           <chr> "/50sromance/", "/50sromance/", "/50sromance/", "/50sro…
+#> $ data_film_slug <chr> "/film/halloween-ends/", "/film/hellraiser-2022/", "/fi…
+#> $ data_film_id   <chr> "543596", "268360", "683194", "228594", "546347", "8538…
+#> $ stars          <chr> "★★★★", "★★★½", "★★★★", "½", "★★", "★★★★★", "★★★★", "★★…
+#> $ rating         <dbl> 4.0, 3.5, 4.0, 0.5, 2.0, 5.0, 4.0, 4.0, 3.0, 3.5, 0.5, …
 ```
 
 Number of movies in the subset:
 
 ``` r
-length(unique(ratings$data_film_slug))
-#> [1] 2884
+length(unique(user_ratings$data_film_slug))
+#> [1] 150647
 ```
 
 Number of users in the subset:
 
 ``` r
-length(unique(ratings$user_href))
-#> [1] 225742
+length(unique(user_ratings$href))
+#> [1] 818
 ```
+
+*Note. When I’m finished scraping, this should be roughly equal to 7500.
+As of 2022-11-21, the number of users with data represents 10.907% of
+the total users.*
 
 Example:
 
 ``` r
-ratings |> 
-  nest(!data_film_slug) |> 
-  slice_sample(n = 15) |> 
-  unnest(data) |> 
+metadata <- read_rds("download/metadata.rds")
+
+user_ratings |> 
+  nest(data = !data_film_slug) |> 
+  mutate(n = map_dbl(data, nrow)) |> 
+  slice_head(n = 15) |> 
+  unnest(cols = "data") |> 
   left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
   facet_wrap(~alt, ncol = 3)
-#> Warning: All elements of `...` must be named.
-#> Did you want `data = !data_film_slug`?
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-5-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-7-1.png)<!-- -->
 
 ------------------------------------------------------------------------
-
-*Maybe we can fix the user cap by scrapping individual users instead of
-individual movies?*
 
 *We should also add other types of metadata per movie, like date and
 genre.*

@@ -17,41 +17,50 @@ knitr::opts_chunk$set(
 
 <!-- badges: end -->
 
-The `movies-dataset` repository contains data scraped from <https://letterboxd.com/>
-
-The main datasets includes some `metadata.rds` that was later used to download individual level ratings for some movies, contained in `ratings_subset.rds`.
-
-The number of individual level ratings is capped at 5000 users, so we remove all movies that have 5000 users under the presumption that they are incomplete. This means that we drop all popular movies and end up using *niche movies* instead.
-
 ```{r, message=FALSE}
 library(tidyverse)
+```
 
-metadata <- read_rds("download/metadata.rds")
-ratings <- read_rds("download/ratings_subset.rds")
+The `movies-dataset` repository contains data scraped from <https://letterboxd.com/>
 
-glimpse(metadata)
-glimpse(ratings)
+`download/00-get-users.R` creates the `users.rds` file, which contains user-level information on the 7,500 most popular users of all time.
+
+```{r}
+users <- read_rds("download/users.rds")
+glimpse(users)
+```
+
+The information contain in the `href` variable was then used to scrape ratings-per user with the `download/01-get-ratings-from-users.R` script. This data is stored in the `user_ratings.rds` file.
+
+```{r}
+user_ratings <- read_rds("download/user_ratings.rds")
+glimpse(user_ratings)
 ```
 
 Number of movies in the subset:
 
 ```{r}
-length(unique(ratings$data_film_slug))
+length(unique(user_ratings$data_film_slug))
 ```
 
 Number of users in the subset:
 
 ```{r}
-length(unique(ratings$user_href))
+length(unique(user_ratings$href))
 ```
+
+*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r lubridate::today()`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.001)` of the total users.*
 
 Example:
 
-```{r, message=FALSE}
-ratings |> 
-  nest(!data_film_slug) |> 
-  slice_sample(n = 15) |> 
-  unnest(data) |> 
+```{r,  message=FALSE, warning=FALSE}
+metadata <- read_rds("download/metadata.rds")
+
+user_ratings |> 
+  nest(data = !data_film_slug) |> 
+  mutate(n = map_dbl(data, nrow)) |> 
+  slice_head(n = 15) |> 
+  unnest(cols = "data") |> 
   left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
@@ -59,8 +68,6 @@ ratings |>
 ```
 
 ------------------------------------------------------------------------
-
-*Maybe we can fix the user cap by scrapping individual users instead of individual movies?*
 
 *We should also add other types of metadata per movie, like date and genre.*
 

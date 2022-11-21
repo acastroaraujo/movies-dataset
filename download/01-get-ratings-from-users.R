@@ -74,6 +74,21 @@ scrape_movie_from_user <- function(user) {
   
 }
 
+stars_to_numbers <- function(x) {
+  dplyr::case_when(
+    x == "½" ~ 0.5,
+    x == "★" ~ 1,
+    x == "★½" ~ 1.5,
+    x == "★★" ~ 2,
+    x == "★★½" ~ 2.5,
+    x == "★★★" ~ 3,
+    x == "★★★½" ~ 3.5,
+    x == "★★★★" ~ 4,
+    x == "★★★★½" ~ 4.5,
+    x == "★★★★★" ~ 5,
+    TRUE ~ NA_real_
+  )
+}
 
 # download ----------------------------------------------------------------
 
@@ -107,9 +122,25 @@ while (length(left) > 0) {
 output <- dir(outfolder, full.names = TRUE) |> 
   map(read_rds)
 
+names(output) <- dir(outfolder) |> str_remove("\\.rds$")
+
 error_index <- output |> 
   map_lgl(\(x) any(class(x) == "try-error")) 
 
-sum(error_index)
+if (sum(error_index) > 0) {
+  file.remove(glue("{outfolder}{names(output[error_index])}.rds"))
+  output <- output[!error_index]
+}
 
 df <- bind_rows(output)
+
+df <- df |> 
+  rename(stars = rating) |> 
+  mutate(stars = str_squish(stars)) |> 
+  mutate(rating = stars_to_numbers(stars)) |> 
+  rename(href = user) |> 
+  mutate(href = str_replace(href, "(.+)", "/\\1/")) |> 
+  select(!data_cache_busting_key) |> 
+  relocate(href)
+
+write_rds(df, "download/user_ratings.rds", compress = "gz")
