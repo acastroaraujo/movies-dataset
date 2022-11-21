@@ -49,17 +49,29 @@ Number of users in the subset:
 length(unique(user_ratings$href))
 ```
 
-*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r lubridate::today()`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.001)` of the total users.*
+*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r lubridate::today()`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users we have sampled.*
 
-Example:
+Count of movies rated by users (example):
 
-```{r,  message=FALSE, warning=FALSE}
+```{r movie-raters}
+user_ratings |> 
+  count(data_film_slug) |> 
+  ggplot(aes(n)) + 
+  geom_histogram(color = "white") + 
+  geom_rug(alpha = 1/10) + 
+  scale_x_log10() 
+```
+
+A sample of movie ratings (example):
+
+```{r movie-ratings,  message=FALSE, warning=FALSE}
 metadata <- read_rds("download/metadata.rds")
 
 user_ratings |> 
+  filter(!is.na(rating)) |> 
   nest(data = !data_film_slug) |> 
   mutate(n = map_dbl(data, nrow)) |> 
-  slice_head(n = 15) |> 
+  slice_max(n = 15, order_by = n) |> 
   unnest(cols = "data") |> 
   left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
   ggplot(aes(rating)) + 
@@ -67,9 +79,29 @@ user_ratings |>
   facet_wrap(~alt, ncol = 3)
 ```
 
+**How does the rating of movies of our sample of users compare to the overall ratings?**
+
+```{r comparison, warning=FALSE}
+inner_join(metadata, user_ratings) |> 
+  filter(!is.na(rating)) |> 
+  group_by(data_film_slug, alt) |> 
+  summarize(all_avg = mean(data_average_rating), sample_avg = mean(rating), sample_size = n()) |> 
+  ggplot(aes(all_avg, sample_avg)) + 
+  geom_jitter(aes(color = log(sample_size)), alpha = 1/10) + 
+  geom_smooth(method = "lm") + 
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
+  ylim(0.5, 5) + xlim(0.5, 5) + 
+  theme(legend.position = "bottom") + 
+  scale_color_viridis_c()
+```
+
+This graph makes it clear that our more popular users are different from *all* users. Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. 
+
+On the other hand, as the colors show, this might simply be an issue of sample size; all high-sample movies cluster near the line of equality. This means we might not have "biased" samples after all.
+
 ------------------------------------------------------------------------
 
-*We should also add other types of metadata per movie, like date and genre.*
+*We should also add other types of metadata per movie, like date and genre. We can also extract network data (i.e., who among the users follows who), but I wouldn't know how to use that...* 
 
 *Note, there's currently an API in beta. We should consider applying for this so that the data becomes "legal."*
 
