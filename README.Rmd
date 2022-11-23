@@ -37,19 +37,19 @@ user_ratings <- read_rds("download/user_ratings.rds")
 glimpse(user_ratings)
 ```
 
-Number of movies in the subset:
+Number of movies:
 
 ```{r}
 length(unique(user_ratings$data_film_slug))
 ```
 
-Number of users in the subset:
+Number of users:
 
 ```{r}
 length(unique(user_ratings$href))
 ```
 
-*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r lubridate::today()`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users we have sampled.*
+*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r format(Sys.Date(), "%B %d (%Y)")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users we have sampled.*
 
 Count of movies rated by users (example):
 
@@ -64,16 +64,17 @@ user_ratings |>
 
 A sample of movie ratings (example):
 
-```{r movie-ratings,  message=FALSE, warning=FALSE}
+```{r movie-ratings,  message=FALSE, warning=FALSE, fig.height=8}
 metadata <- read_rds("download/metadata.rds")
 
 user_ratings |> 
   filter(!is.na(rating)) |> 
   nest(data = !data_film_slug) |> 
   mutate(n = map_dbl(data, nrow)) |> 
-  slice_max(n = 15, order_by = n) |> 
+  slice_max(n = 24, order_by = n) |> 
   unnest(cols = "data") |> 
   left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
+  mutate(alt = fct_reorder(alt, -n)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
   facet_wrap(~alt, ncol = 3)
@@ -95,9 +96,7 @@ inner_join(metadata, user_ratings) |>
   scale_color_viridis_c()
 ```
 
-This graph makes it clear that our more popular users are different from *all* users. Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. 
-
-On the other hand, as the colors show, this might simply be an issue of sample size; all high-sample movies cluster near the line of equality. This means we might not have "biased" samples after all.
+This graph makes it look like our more popular users are different from *all* users. Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. But, as the colors show, this is simply an issue of sample size; all high-sample movies cluster near the line of equality. This means we might not have "biased" samples after all.
 
 ------------------------------------------------------------------------
 

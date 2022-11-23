@@ -1,4 +1,5 @@
 
+### TO DO: users with just 1 page (e.g., maktubdourado) don't have a footer and their N = NA, this produces an error.
 ### TO DO, FIGURE OUT WHAT TO ASSIGN TO EMPTY RATINGS, SHOULD I JUST REMOVE THEM??
 
 

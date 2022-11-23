@@ -36,32 +36,32 @@ This data is stored in the `user_ratings.rds` file.
 ``` r
 user_ratings <- read_rds("download/user_ratings.rds")
 glimpse(user_ratings)
-#> Rows: 2,088,174
+#> Rows: 4,399,616
 #> Columns: 5
-#> $ href           <chr> "/12angryevelyns/", "/12angryevelyns/", "/12angryevelyn…
-#> $ data_film_slug <chr> "/film/paloma-2022/", "/film/burning-days/", "/film/aft…
-#> $ data_film_id   <chr> "751292", "606734", "868558", "757859", "474474", "8226…
-#> $ stars          <chr> "★★★★", "★★★½", "★★★★", "★★★½", "★★★★★", "★★★★", "★★★★"…
-#> $ rating         <dbl> 4.0, 3.5, 4.0, 3.5, 5.0, 4.0, 4.0, 4.0, 4.5, 4.5, 3.0, …
+#> $ href           <chr> "/_jhags/", "/_jhags/", "/_jhags/", "/_jhags/", "/_jhag…
+#> $ data_film_slug <chr> "/film/halloween-ends/", "/film/dont-worry-darling/", "…
+#> $ data_film_id   <chr> "543596", "546347", "853822", "682547", "861294", "7363…
+#> $ stars          <chr> "★★★★½", "★★★", "★★★★", "★★★★★", "★★★", "★★★", "★★★★", …
+#> $ rating         <dbl> 4.5, 3.0, 4.0, 5.0, 3.0, 3.0, 4.0, 4.0, 4.0, 5.0, 4.0, …
 ```
 
-Number of movies in the subset:
+Number of movies:
 
 ``` r
 length(unique(user_ratings$data_film_slug))
-#> [1] 154917
+#> [1] 203623
 ```
 
-Number of users in the subset:
+Number of users:
 
 ``` r
 length(unique(user_ratings$href))
-#> [1] 891
+#> [1] 1909
 ```
 
 *Note. When I’m finished scraping, this should be roughly equal to 7500.
-As of 2022-11-21, the number of users with data represents 11.88% of the
-total users we have sampled.*
+As of November 23 (2022), the number of users with data represents
+25.45% of the total users we have sampled.*
 
 Count of movies rated by users (example):
 
@@ -86,9 +86,10 @@ user_ratings |>
   filter(!is.na(rating)) |> 
   nest(data = !data_film_slug) |> 
   mutate(n = map_dbl(data, nrow)) |> 
-  slice_max(n = 15, order_by = n) |> 
+  slice_max(n = 24, order_by = n) |> 
   unnest(cols = "data") |> 
   left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
+  mutate(alt = fct_reorder(alt, -n)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
   facet_wrap(~alt, ncol = 3)
@@ -119,14 +120,13 @@ inner_join(metadata, user_ratings) |>
 
 ![](README_files/figure-gfm/comparison-1.png)<!-- -->
 
-This graph makes it clear that our more popular users are different from
+This graph makes it look like our more popular users are different from
 *all* users. Every movie under the red line of equality was rated higher
 by the full population of users; every movie over the line of equality
-was rated higher by the sample of popular users.
-
-On the other hand, as the colors show, this might simply be an issue of
-sample size; all high-sample movies cluster near the line of equality.
-This means we might not have “biased” samples after all.
+was rated higher by the sample of popular users. But, as the colors
+show, this is simply an issue of sample size; all high-sample movies
+cluster near the line of equality. This means we might not have “biased”
+samples after all.
 
 ------------------------------------------------------------------------
 
