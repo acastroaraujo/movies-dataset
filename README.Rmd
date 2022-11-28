@@ -19,39 +19,52 @@ knitr::opts_chunk$set(
 
 ```{r, message=FALSE}
 library(tidyverse)
+library(vroom)
+theme_set(theme_light())
 ```
 
 The `movies-dataset` repository contains data scraped from <https://letterboxd.com/>
 
 `download/00-get-users.R` creates the `users.rds` file, which contains user-level information on the 7,500 most popular users of all time.
 
-```{r}
-users <- read_rds("download/users.rds")
+```{r, message=FALSE, warning=FALSE}
+users <- vroom::vroom("download/users.tsv.gz")
 glimpse(users)
 ```
 
 The information contain in the `href` variable was then used to scrape ratings-per user with the `download/01-get-ratings-from-users.R` script. This data is stored in the `user_ratings.rds` file.
 
 ```{r}
-user_ratings <- read_rds("download/user_ratings.rds")
+user_ratings <- vroom::vroom(
+  file = "download/user_ratings.tsv.gz", 
+  col_types = cols(
+    href = col_character(),
+    data_film_slug = col_character(),
+    data_film_id = col_integer(),
+    rating = col_double()
+  )
+)
+
 glimpse(user_ratings)
 ```
 
-Number of movies:
+**Number of movies:**
+
+*Note, movies with two raters or less were removed.*
 
 ```{r}
 length(unique(user_ratings$data_film_slug))
 ```
 
-Number of users:
+**Number of users:**
 
 ```{r}
 length(unique(user_ratings$href))
 ```
 
-*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r format(Sys.Date(), "%B %d (%Y)")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users we have sampled.*
+*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r format(Sys.Date(), "%B %d %Y")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users we have sampled.*
 
-Count of movies rated by users (example):
+**Count of movies rated by users (example):**
 
 ```{r movie-raters}
 user_ratings |> 
@@ -62,41 +75,65 @@ user_ratings |>
   scale_x_log10() 
 ```
 
-A sample of movie ratings (example):
+**A sample of movie ratings (example):**
 
-```{r movie-ratings,  message=FALSE, warning=FALSE, fig.height=8}
+```{r movie-ratings, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
 metadata <- read_rds("download/metadata.rds")
 
 user_ratings |> 
-  filter(!is.na(rating)) |> 
   nest(data = !data_film_slug) |> 
   mutate(n = map_dbl(data, nrow)) |> 
-  slice_max(n = 24, order_by = n) |> 
+  slice_max(n = 36, order_by = n) |> 
   unnest(cols = "data") |> 
   left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
   mutate(alt = fct_reorder(alt, -n)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 3)
+  facet_wrap(~alt, ncol = 4)
+```
+
+**Polarizing movies (example):**
+
+```{r polarizing, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
+polarizing <- user_ratings |> 
+  group_by(data_film_slug) |> 
+  filter(n() >= 500) |>
+  summarize(var = var(rating)) |> 
+  slice_max(n = 36, order_by = var)
+
+user_ratings |> 
+  filter(data_film_slug %in% polarizing$data_film_slug) |> 
+  left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
+  mutate(alt = fct_reorder(alt, .x = rating, .fun = var, .desc = TRUE)) |>
+  ggplot(aes(rating)) + 
+  geom_bar(width = 1/5) + 
+  facet_wrap(~alt, ncol = 4)
 ```
 
 **How does the rating of movies of our sample of users compare to the overall ratings?**
 
+*Note. I'm only comparing movies with 10 raters or more.*
+
 ```{r comparison, warning=FALSE}
-inner_join(metadata, user_ratings) |> 
-  filter(!is.na(rating)) |> 
+user_ratings |> 
+  inner_join(metadata)  |> 
   group_by(data_film_slug, alt) |> 
-  summarize(all_avg = mean(data_average_rating), sample_avg = mean(rating), sample_size = n()) |> 
+  filter(n() >= 10) |> 
+  summarize(
+    all_avg = unique(data_average_rating), 
+    sample_avg = mean(rating), 
+    sample_size = n()
+  ) |> 
   ggplot(aes(all_avg, sample_avg)) + 
-  geom_jitter(aes(color = log(sample_size)), alpha = 1/10) + 
+  geom_point(aes(color = log(sample_size)), alpha = 1/5) + 
   geom_smooth(method = "lm") + 
   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
   ylim(0.5, 5) + xlim(0.5, 5) + 
-  theme(legend.position = "bottom") + 
+  theme(legend.position = "bottom") +
   scale_color_viridis_c()
 ```
 
-This graph makes it look like our more popular users are different from *all* users. Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. But, as the colors show, this is simply an issue of sample size; all high-sample movies cluster near the line of equality. This means we might not have "biased" samples after all.
+Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. Looks good!
 
 ------------------------------------------------------------------------
 

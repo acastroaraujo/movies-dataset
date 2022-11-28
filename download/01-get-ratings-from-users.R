@@ -1,7 +1,5 @@
 
-### TO DO: users with just 1 page (e.g., maktubdourado) don't have a footer and their N = NA, this produces an error.
-### TO DO, FIGURE OUT WHAT TO ASSIGN TO EMPTY RATINGS, SHOULD I JUST REMOVE THEM??
-
+### TO DO, FIGURE OUT WHAT TO ASSIGN TO EMPTY RATINGS, I'm simply removing them...
 
 # packages ----------------------------------------------------------------
 
@@ -11,8 +9,9 @@ library(httr)
 library(rvest)
 library(janitor)
 library(progress)
+library(vroom)
 
-# helper function ---------------------------------------------------------
+# helper functions --------------------------------------------------------
 
 scrape_movie_from_user <- function(user) {
   
@@ -37,6 +36,7 @@ scrape_movie_from_user <- function(user) {
     dplyr::last() |> 
     base::as.integer()
   
+  if (is.na(N)) N <- 1L ## users with few movies don't have pagination
   message(glue("{user}: 1 of {N} pages"))
   
   out <- vector("list", N)  
@@ -64,7 +64,7 @@ scrape_movie_from_user <- function(user) {
       out[[n]] <- df_n
       
       message(glue("{user}: {n} of {N} pages"))
-      Sys.sleep(runif(1, 1, 3))
+      Sys.sleep(runif(1, 1, 2))
       
     }
   }
@@ -96,7 +96,7 @@ stars_to_numbers <- function(x) {
 outfolder <- "download/user-files/"
 if (!dir.exists(outfolder)) dir.create(outfolder)
 
-users <- read_rds("download/users.rds") |> 
+users <- vroom::vroom("download/users.tsv.gz") |> 
   mutate(id = str_remove_all(href, "/")) |> ## I removed the "/" because these names are used as file names later on
   pull(id)
 
@@ -110,7 +110,7 @@ while (length(left) > 0) {
   x <- sample(left, 1)
   output <- try(scrape_movie_from_user(x))
   
-  write_rds(output, glue("{outfolder}{x}.rds"), compress = "gz")
+  readr::write_rds(output, glue("{outfolder}{x}.rds"), compress = "gz")
   left <- left[-which(left %in% x)] ## int. subset
   
   pb$tick()
@@ -120,10 +120,9 @@ while (length(left) > 0) {
 
 # organize ----------------------------------------------------------------
 
-output <- dir(outfolder, full.names = TRUE) |> 
-  map(read_rds)
-
-names(output) <- dir(outfolder) |> str_remove("\\.rds$")
+files <- dir(outfolder, full.names = TRUE) 
+output <- map(files, readr::read_rds)
+names(output) <- files |> str_remove("\\.rds$") |> str_remove(outfolder)
 
 error_index <- output |> 
   map_lgl(\(x) any(class(x) == "try-error")) 
@@ -136,12 +135,16 @@ if (sum(error_index) > 0) {
 df <- bind_rows(output)
 
 df <- df |> 
-  rename(stars = rating) |> 
-  mutate(stars = str_squish(stars)) |> 
-  mutate(rating = stars_to_numbers(stars)) |> 
-  rename(href = user) |> 
+  mutate(rating = stars_to_numbers(str_squish(rating))) |> 
+  rename(href = user) |>
   mutate(href = str_replace(href, "(.+)", "/\\1/")) |> 
   select(!data_cache_busting_key) |> 
-  relocate(href)
+  relocate(href) |> 
+  filter(!is.na(rating)) |> 
+  group_by(data_film_slug) |> 
+  filter(n() > 2) |> ## remove movies with two raters or less
+  ungroup() |> 
+  mutate(data_film_id = as.integer(data_film_id))
 
-write_rds(df, "download/user_ratings.rds", compress = "gz")
+vroom::vroom_write(df, "download/user_ratings.tsv.gz")
+

@@ -75,7 +75,7 @@ error_index <- output |>
 sum(error_index)
 
 df <- bind_rows(output[!error_index]) |> 
-  mutate(data_average_rating = as.double(data_average_rating))
+  mutate(data_average_rating = as.double(data_average_rating)) |> 
+  mutate(data_film_id = as.integer(data_film_id))
 
 write_rds(df, glue("download/metadata.rds"), compress = "gz")
-

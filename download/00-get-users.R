@@ -7,6 +7,7 @@ library(httr)
 library(rvest)
 library(janitor)
 library(progress)
+library(vroom)
 
 # helper function ---------------------------------------------------------
 
@@ -57,4 +58,5 @@ df <- map_df(out[!error_index], function(x) {
   return(x)
 })
 
-write_rds(df, "download/users.rds", compress = "gz")
+vroom::vroom_write(df, "download/users.tsv.gz")
+
