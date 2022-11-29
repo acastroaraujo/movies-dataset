@@ -13,9 +13,9 @@ The `movies-dataset` repository contains data scraped from
 user-level information on the 7,500 most popular users of all time.
 
 ``` r
-library(vroom)
-users <- vroom::vroom("download/users.tsv.gz")
-dplyr::glimpse(users)
+library(tidyverse)
+users <- readRDS("download/users.rds")
+glimpse(users)
 #> Rows: 7,500
 #> Columns: 6
 #> $ name    <chr> "karsten", "Lucy", "davidehrlich", "Jay", "SilentDawn", "matt …
@@ -31,23 +31,14 @@ ratings-per user with the `download/01-get-ratings-from-users.R` script.
 This data is stored in the `user_ratings.rds` file.
 
 ``` r
-user_ratings <- vroom::vroom(
-  file = "download/user_ratings.tsv.gz", 
-  col_types = cols(
-    href = col_character(),
-    data_film_slug = col_character(),
-    data_film_id = col_integer(),
-    rating = col_double()
-  )
-)
-
-dplyr::glimpse(user_ratings)
-#> Rows: 13,393,596
+user_ratings <- readRDS("download/user_ratings.rds")
+glimpse(user_ratings)
+#> Rows: 13,393,518
 #> Columns: 4
-#> $ href           <chr> "/__lobster__/", "/__lobster__/", "/__lobster__/", "/__…
-#> $ data_film_slug <chr> "/film/blonde-2022/", "/film/pearl-2022/", "/film/tar-2…
+#> $ href           <fct> /__lobster__/, /__lobster__/, /__lobster__/, /__lobster…
+#> $ data_film_slug <fct> /film/blonde-2022/, /film/pearl-2022/, /film/tar-2022/,…
 #> $ data_film_id   <int> 228594, 853822, 734096, 622654, 682547, 886145, 658830,…
-#> $ rating         <dbl> 2.0, 2.0, 2.0, 2.5, 2.0, 2.5, 2.5, 3.5, 4.0, 1.5, 2.0, …
+#> $ rating         <int> 4, 4, 4, 5, 4, 5, 5, 7, 8, 3, 4, 7, 7, 7, 4, 5, 6, 8, 4…
 ```
 
 **Number of movies:**
@@ -63,17 +54,20 @@ length(unique(user_ratings$data_film_slug))
 
 ``` r
 length(unique(user_ratings$href))
-#> [1] 7361
+#> [1] 7326
 ```
 
-*Note. When I’m finished scraping, this should be roughly equal to 7500.
-As of November 29 2022, the number of users with data represents 98.15%
-of the total users we have sampled.*
+*Note. This should be roughly equal to 7500. As of November 29 2022, the
+number of users with data represents 97.68% of the total users in our
+sample. The missing users are probably due to the fact that: (1) they
+deleted their accounts between sampling and collection, (2) they’re
+active users but don’t actually rate movies, or (3) they have only rated
+movies that are too niche (i.e., no other two users in the sample rated
+the same movie).*
 
 **Count of movies rated by users (example):**
 
 ``` r
-library(tidyverse)
 theme_set(theme_light())
 
 user_ratings |> 
@@ -81,10 +75,24 @@ user_ratings |>
   ggplot(aes(n)) + 
   geom_histogram(color = "white") + 
   geom_rug(alpha = 1/10) + 
-  scale_x_log10() 
+  scale_x_log10(labels = scales::comma) 
 ```
 
 ![](README_files/figure-gfm/movie-raters-1.png)<!-- -->
+
+**Count of ratings by users (example):**
+
+``` r
+user_ratings |> 
+  count(href) |> 
+  ggplot(aes(n)) + 
+  geom_histogram(color = "white") + 
+  geom_rug(alpha = 1/10) + 
+  scale_x_log10(labels = scales::comma) 
+#> `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
+```
+
+![](README_files/figure-gfm/unnamed-chunk-6-1.png)<!-- -->
 
 **A sample of movie ratings (example):**
 
@@ -100,7 +108,8 @@ user_ratings |>
   mutate(alt = fct_reorder(alt, -n)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 4)
+  facet_wrap(~alt, ncol = 4) +
+  scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
 
 ![](README_files/figure-gfm/movie-ratings-1.png)<!-- -->
@@ -120,7 +129,8 @@ user_ratings |>
   mutate(alt = fct_reorder(alt, .x = rating, .fun = var, .desc = TRUE)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 4)
+  facet_wrap(~alt, ncol = 4) +
+  scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
 
 ![](README_files/figure-gfm/polarizing-1.png)<!-- -->
@@ -136,7 +146,7 @@ user_ratings |>
   group_by(data_film_slug, alt) |> 
   filter(n() >= 10) |> 
   summarize(
-    all_avg = unique(data_average_rating), 
+    all_avg = unique(data_average_rating*2), ## make ratings compatible
     sample_avg = mean(rating), 
     sample_size = n()
   ) |> 
@@ -144,13 +154,11 @@ user_ratings |>
   geom_point(aes(color = log(sample_size)), alpha = 1/5) + 
   geom_smooth(method = "lm") + 
   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
-  ylim(0.5, 5) + xlim(0.5, 5) + 
+  ylim(1, 10) + xlim(1, 10) + 
   theme(legend.position = "bottom") +
-  scale_color_viridis_c()
-#> Joining, by = c("data_film_slug", "data_film_id")
-#> `summarise()` has grouped output by 'data_film_slug', 'alt'. You can override
-#> using the `.groups` argument.
-#> `geom_smooth()` using formula = 'y ~ x'
+  scale_color_viridis_c() +
+  scale_x_continuous(breaks = 1:10, labels = 1:10) +
+  scale_y_continuous(breaks = 1:10, labels = 1:10)
 ```
 
 ![](README_files/figure-gfm/comparison-1.png)<!-- -->

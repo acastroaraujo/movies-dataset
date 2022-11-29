@@ -22,25 +22,16 @@ The `movies-dataset` repository contains data scraped from <https://letterboxd.c
 `download/00-get-users.R` creates the `users.rds` file, which contains user-level information on the 7,500 most popular users of all time.
 
 ```{r, message=FALSE, warning=FALSE}
-library(vroom)
-users <- vroom::vroom("download/users.tsv.gz")
-dplyr::glimpse(users)
+library(tidyverse)
+users <- readRDS("download/users.rds")
+glimpse(users)
 ```
 
 The information contain in the `href` variable was then used to scrape ratings-per user with the `download/01-get-ratings-from-users.R` script. This data is stored in the `user_ratings.rds` file.
 
 ```{r}
-user_ratings <- vroom::vroom(
-  file = "download/user_ratings.tsv.gz", 
-  col_types = cols(
-    href = col_character(),
-    data_film_slug = col_character(),
-    data_film_id = col_integer(),
-    rating = col_double()
-  )
-)
-
-dplyr::glimpse(user_ratings)
+user_ratings <- readRDS("download/user_ratings.rds")
+glimpse(user_ratings)
 ```
 
 **Number of movies:**
@@ -57,12 +48,11 @@ length(unique(user_ratings$data_film_slug))
 length(unique(user_ratings$href))
 ```
 
-*Note. When I'm finished scraping, this should be roughly equal to 7500. As of `r format(Sys.Date(), "%B %d %Y")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users we have sampled.*
+*Note. This should be roughly equal to 7500. As of `r format(Sys.Date(), "%B %d %Y")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users in our sample. The missing users are probably due to the fact that: (1) they deleted their accounts between sampling and collection, (2) they're active users but don't actually rate movies, or (3) they have only rated movies that are too niche (i.e., no other two users in the sample rated the same movie).*
 
 **Count of movies rated by users (example):**
 
 ```{r movie-raters, message=FALSE, warning=FALSE}
-library(tidyverse)
 theme_set(theme_light())
 
 user_ratings |> 
@@ -70,8 +60,20 @@ user_ratings |>
   ggplot(aes(n)) + 
   geom_histogram(color = "white") + 
   geom_rug(alpha = 1/10) + 
-  scale_x_log10() 
+  scale_x_log10(labels = scales::comma) 
 ```
+
+**Count of ratings by users (example):**
+
+```{r}
+user_ratings |> 
+  count(href) |> 
+  ggplot(aes(n)) + 
+  geom_histogram(color = "white") + 
+  geom_rug(alpha = 1/10) + 
+  scale_x_log10(labels = scales::comma) 
+```
+
 
 **A sample of movie ratings (example):**
 
@@ -87,7 +89,8 @@ user_ratings |>
   mutate(alt = fct_reorder(alt, -n)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 4)
+  facet_wrap(~alt, ncol = 4) +
+  scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
 
 **Polarizing movies (example):**
@@ -105,20 +108,21 @@ user_ratings |>
   mutate(alt = fct_reorder(alt, .x = rating, .fun = var, .desc = TRUE)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 4)
+  facet_wrap(~alt, ncol = 4) +
+  scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
 
 **How does the rating of movies of our sample of users compare to the overall ratings?**
 
 *Note. I'm only comparing movies with 10 raters or more.*
 
-```{r comparison, warning=FALSE}
+```{r comparison, warning=FALSE, message=FALSE}
 user_ratings |> 
   inner_join(metadata)  |> 
   group_by(data_film_slug, alt) |> 
   filter(n() >= 10) |> 
   summarize(
-    all_avg = unique(data_average_rating), 
+    all_avg = unique(data_average_rating*2), ## make ratings compatible
     sample_avg = mean(rating), 
     sample_size = n()
   ) |> 
@@ -126,9 +130,11 @@ user_ratings |>
   geom_point(aes(color = log(sample_size)), alpha = 1/5) + 
   geom_smooth(method = "lm") + 
   geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
-  ylim(0.5, 5) + xlim(0.5, 5) + 
+  ylim(1, 10) + xlim(1, 10) + 
   theme(legend.position = "bottom") +
-  scale_color_viridis_c()
+  scale_color_viridis_c() +
+  scale_x_continuous(breaks = 1:10, labels = 1:10) +
+  scale_y_continuous(breaks = 1:10, labels = 1:10)
 ```
 
 Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. Looks good!

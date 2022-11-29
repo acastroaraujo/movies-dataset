@@ -9,7 +9,6 @@ library(httr)
 library(rvest)
 library(janitor)
 library(progress)
-library(vroom)
 
 # helper functions --------------------------------------------------------
 
@@ -96,7 +95,7 @@ stars_to_numbers <- function(x) {
 outfolder <- "download/user-files/"
 if (!dir.exists(outfolder)) dir.create(outfolder)
 
-users <- vroom::vroom("download/users.tsv.gz") |> 
+users <- read_rds("download/users.rds") |> 
   mutate(id = str_remove_all(href, "/")) |> ## I removed the "/" because these names are used as file names later on
   pull(id)
 
@@ -135,20 +134,31 @@ df <- bind_rows(output)
 
 df <- df |> 
   mutate(rating = stars_to_numbers(str_squish(rating))) |> 
-  rename(href = user) |>
+  rename(href = user) |>             ## for compatibility
   mutate(href = str_replace(href, "(.+)", "/\\1/")) |> 
-  select(!data_cache_busting_key) |> 
+  select(!data_cache_busting_key) |> ## this was useless
   relocate(href) |> 
   filter(!is.na(rating)) |> 
   group_by(data_film_slug) |> 
-  filter(n() > 2) |> ## remove movies with two raters or less
+  filter(n() >= 3) |> ## remove movies with less than 3 raters 
+  group_by(href) |> 
+  filter(n() >= 10) |> ## remove users with less than 10 movies
   ungroup() |> 
   mutate(data_film_id = as.integer(data_film_id))
 
-vroom::vroom_write(df, "download/user_ratings.tsv.gz")
+## the following lines are for memory efficiency
+
+user_levels <- glue("/{users}/")
+film_levels <- unique(df$data_film_slug)
+
+df <- df |> 
+  mutate(
+    href = factor(href, levels = user_levels),
+    data_film_slug = factor(data_film_slug, levels = film_levels),
+    rating = as.integer(rating*2) ## transform and store as integer [1, 10]
+  )
+
+readr::write_rds(df, "download/user_ratings.rds", compress = "gz")
 
 
-# setdiff(paste0(names(output), "/"), unique(df$href))
 
-# names(output)[1:4]
-# unique(df$href)[1:5]
