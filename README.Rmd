@@ -17,19 +17,14 @@ knitr::opts_chunk$set(
 
 <!-- badges: end -->
 
-```{r, message=FALSE}
-library(tidyverse)
-library(vroom)
-theme_set(theme_light())
-```
-
 The `movies-dataset` repository contains data scraped from <https://letterboxd.com/>
 
 `download/00-get-users.R` creates the `users.rds` file, which contains user-level information on the 7,500 most popular users of all time.
 
 ```{r, message=FALSE, warning=FALSE}
+library(vroom)
 users <- vroom::vroom("download/users.tsv.gz")
-glimpse(users)
+dplyr::glimpse(users)
 ```
 
 The information contain in the `href` variable was then used to scrape ratings-per user with the `download/01-get-ratings-from-users.R` script. This data is stored in the `user_ratings.rds` file.
@@ -45,7 +40,7 @@ user_ratings <- vroom::vroom(
   )
 )
 
-glimpse(user_ratings)
+dplyr::glimpse(user_ratings)
 ```
 
 **Number of movies:**
@@ -66,7 +61,10 @@ length(unique(user_ratings$href))
 
 **Count of movies rated by users (example):**
 
-```{r movie-raters}
+```{r movie-raters, message=FALSE, warning=FALSE}
+library(tidyverse)
+theme_set(theme_light())
+
 user_ratings |> 
   count(data_film_slug) |> 
   ggplot(aes(n)) + 

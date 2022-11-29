@@ -100,7 +100,7 @@ users <- vroom::vroom("download/users.tsv.gz") |>
   mutate(id = str_remove_all(href, "/")) |> ## I removed the "/" because these names are used as file names later on
   pull(id)
 
-done <- str_replace(dir(outfolder), ".rds", "")
+done <- str_replace(dir(outfolder), "\\.rds$", "")
 left <- setdiff(users, done)
 
 pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)\n", total = length(left))
@@ -120,12 +120,11 @@ while (length(left) > 0) {
 
 # organize ----------------------------------------------------------------
 
-files <- dir(outfolder, full.names = TRUE) 
+files <- dir(outfolder, full.names = TRUE)
 output <- map(files, readr::read_rds)
-names(output) <- files |> str_remove("\\.rds$") |> str_remove(outfolder)
+names(output) <- str_remove(files, "\\.rds$") |> str_remove(outfolder)
 
-error_index <- output |> 
-  map_lgl(\(x) any(class(x) == "try-error")) 
+error_index <- map_lgl(output, \(x) any(class(x) == "try-error")) 
 
 if (sum(error_index) > 0) {
   file.remove(glue("{outfolder}{names(output[error_index])}.rds"))
@@ -148,3 +147,8 @@ df <- df |>
 
 vroom::vroom_write(df, "download/user_ratings.tsv.gz")
 
+
+# setdiff(paste0(names(output), "/"), unique(df$href))
+
+# names(output)[1:4]
+# unique(df$href)[1:5]

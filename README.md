@@ -6,12 +6,6 @@
 <!-- badges: start -->
 <!-- badges: end -->
 
-``` r
-library(tidyverse)
-library(vroom)
-theme_set(theme_light())
-```
-
 The `movies-dataset` repository contains data scraped from
 <https://letterboxd.com/>
 
@@ -19,8 +13,9 @@ The `movies-dataset` repository contains data scraped from
 user-level information on the 7,500 most popular users of all time.
 
 ``` r
+library(vroom)
 users <- vroom::vroom("download/users.tsv.gz")
-glimpse(users)
+dplyr::glimpse(users)
 #> Rows: 7,500
 #> Columns: 6
 #> $ name    <chr> "karsten", "Lucy", "davidehrlich", "Jay", "SilentDawn", "matt …
@@ -46,8 +41,8 @@ user_ratings <- vroom::vroom(
   )
 )
 
-glimpse(user_ratings)
-#> Rows: 12,522,284
+dplyr::glimpse(user_ratings)
+#> Rows: 13,393,596
 #> Columns: 4
 #> $ href           <chr> "/__lobster__/", "/__lobster__/", "/__lobster__/", "/__…
 #> $ data_film_slug <chr> "/film/blonde-2022/", "/film/pearl-2022/", "/film/tar-2…
@@ -61,30 +56,32 @@ glimpse(user_ratings)
 
 ``` r
 length(unique(user_ratings$data_film_slug))
-#> [1] 152540
+#> [1] 162501
 ```
 
 **Number of users:**
 
 ``` r
 length(unique(user_ratings$href))
-#> [1] 6955
+#> [1] 7361
 ```
 
 *Note. When I’m finished scraping, this should be roughly equal to 7500.
-As of November 28 2022, the number of users with data represents 92.73%
+As of November 29 2022, the number of users with data represents 98.15%
 of the total users we have sampled.*
 
 **Count of movies rated by users (example):**
 
 ``` r
+library(tidyverse)
+theme_set(theme_light())
+
 user_ratings |> 
   count(data_film_slug) |> 
   ggplot(aes(n)) + 
   geom_histogram(color = "white") + 
   geom_rug(alpha = 1/10) + 
   scale_x_log10() 
-#> `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
 
 ![](README_files/figure-gfm/movie-raters-1.png)<!-- -->
