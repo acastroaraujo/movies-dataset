@@ -160,5 +160,3 @@ df <- df |>
 
 readr::write_rds(df, "download/user_ratings.rds", compress = "gz")
 
-
-
