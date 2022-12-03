@@ -51,12 +51,21 @@ scraper_movie <- function(path) {
     purrr::map(\(x) rvest::html_attr(rvest::html_elements(x, ".text-slug"), "href")) |> 
     purrr::set_names(detail_names)
   
-  meta_attrs <- website |> 
-    rvest::html_elements("head meta")  |> 
-    rvest::html_attrs()
+  # meta_attrs <- website |> 
+  #   rvest::html_elements("head meta")  |> 
+  #   rvest::html_attrs()
+  # 
+  # index <- which(purrr::map_lgl(meta_attrs, \(x) x["property"] == "og:image"))
+  # poster <- meta_attrs[[index]][["content"]]
   
-  index <- which(purrr::map_lgl(meta_attrs, \(x) x["property"] == "og:image"))
-  poster <- meta_attrs[[index]][["content"]]
+  pic <- website |> 
+    rvest::html_elements(xpath = '//*[@id="html"]/body/script[3]/text()') |> 
+    rvest::html_text() |> 
+    stringr::str_split("\n") |> 
+    unlist() |> 
+    purrr::pluck(3) |> 
+    jsonlite::fromJSON() |> 
+    purrr::pluck("image")
   
   out <- list(
     title = title, 
@@ -65,13 +74,14 @@ scraper_movie <- function(path) {
     genres = genres, 
     crew = crew, 
     details = details,
-    poster = poster, 
+    poster = pic, 
     data_film_slug = path
   )
   
   return(out)
   
 }
+
 
 # download ----------------------------------------------------------------
 
