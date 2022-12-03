@@ -17,17 +17,17 @@ scraper_user <- function(n) {
   website <- httr::content(website)
   
   out <- website |> 
-    html_table() |>
-    pluck(1) |> 
+    rvest::html_table() |>
+    purrr::pluck(1) |> 
     dplyr::select(Name, Watched, Lists, Likes) |> 
     dplyr::rename_with(tolower) |> 
-    separate(name, into = c("name", "reviews"), sep = "   ") |> 
-    mutate(across(c(reviews, watched, likes), readr::parse_number)) |> 
-    mutate(across(where(is.numeric), as.integer))
+    tidyr::separate(name, into = c("name", "reviews"), sep = "   ") |> 
+    dplyr::mutate(across(c(reviews, watched, likes), readr::parse_number)) |> 
+    dplyr::mutate(across(where(is.numeric), as.integer))
   
   out$href <- website |> 
-    html_elements(".table-person .name") |> 
-    html_attr("href")
+    rvest::html_elements(".table-person .name") |> 
+    rvest::html_attr("href")
     
   return(out)
   

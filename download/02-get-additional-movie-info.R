@@ -16,38 +16,59 @@ scraper_movie <- function(path) {
   website <- httr::content(website)
   
   title <- website |> 
-    html_elements(".js-widont") |> 
-    html_text()
+    rvest::html_elements(".js-widont") |> 
+    rvest::html_text()
   
   year <- website |> 
-    html_elements(".number") |> 
-    html_text() |> 
+    rvest::html_elements(".number") |> 
+    rvest::html_text() |> 
     as.integer()
   
   actor <- website |> 
-    html_elements("#tab-cast .tooltip") |> 
-    html_text()
+    rvest::html_elements("#tab-cast .tooltip") |> 
+    rvest::html_text()
   
   role <- website |> 
-    html_elements("#tab-cast .tooltip") |> 
-    html_attr("title")
+    rvest::html_elements("#tab-cast .tooltip") |> 
+    rvest::html_attr("title")
   
   genres <- website |> 
-    html_elements("#tab-genres .text-slug") |> 
-    html_attr("href")
+    rvest::html_elements("#tab-genres .text-slug") |> 
+    rvest::html_attr("href")
   
   crew <- website |> 
-    html_elements("#tab-crew .text-slug") |> 
-    html_attr("href")
+    rvest::html_elements("#tab-crew .text-slug") |> 
+    rvest::html_attr("href") 
+
+  detail_names <- website |> 
+    rvest::html_elements("#tab-details") |>
+    rvest::html_elements("h3") |> 
+    rvest::html_text()
+  
+  details <- website |> 
+    rvest::html_elements("#tab-details") |>
+    rvest::html_elements("div") |> 
+    purrr::map(\(x) rvest::html_attr(rvest::html_elements(x, ".text-slug"), "href")) |> 
+    purrr::set_names(detail_names)
   
   meta_attrs <- website |> 
-    html_elements("head meta")  |> 
-    html_attrs()
+    rvest::html_elements("head meta")  |> 
+    rvest::html_attrs()
   
-  index <- which(map_lgl(meta_attrs, \(x) x["property"] == "og:image"))
+  index <- which(purrr::map_lgl(meta_attrs, \(x) x["property"] == "og:image"))
   poster <- meta_attrs[[index]][["content"]]
   
-  out <- list(cast = tibble(actor, role, data_film_slug = path), genres = genres, crew = crew, poster = poster, data_film_slug = path)
+  out <- list(
+    title = title, 
+    year = year,
+    cast = tibble::tibble(actor, role, data_film_slug = path), 
+    genres = genres, 
+    crew = crew, 
+    details = details,
+    poster = poster, 
+    data_film_slug = path
+  )
+  
   return(out)
   
 }
@@ -75,7 +96,6 @@ while (length(left) > 0) {
   
   readr::write_rds(output, glue("{outfolder}{x}.rds"), compress = "gz")
   left <- left[-which(left %in% x)] ## int. subset
-  output
   
   pb$tick()
   Sys.sleep(runif(1, 2, 4))
