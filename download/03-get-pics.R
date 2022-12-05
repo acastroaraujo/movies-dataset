@@ -34,6 +34,8 @@ df <- map_df(files, function(x) {
   mutate(data_film_id = lookup_id[slug]) |> 
   mutate(pic_url = modify_resize(pic_url)) 
 
+df <- filter(df, !is.na(pic_url))
+
 done <- str_replace(dir(outfolder), "\\.jpg$", "")
 left <- setdiff(df$data_film_id, done)
 
@@ -49,8 +51,7 @@ while (length(left) > 0) {
   left <- left[-which(left %in% x)] ## int. subset
   
   pb$tick()
-  Sys.sleep(runif(1, 2, 4))
+  Sys.sleep(runif(1, 1, 4))
   
 }
-
 
