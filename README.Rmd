@@ -19,7 +19,7 @@ knitr::opts_chunk$set(
 
 The `movies-dataset` repository contains data scraped from <https://letterboxd.com/>
 
-`download/00-get-users.R` creates the `users.rds` file, which contains user-level information on the 7,500 most popular users of all time.
+`download/00-get-users.R` creates the `users.rds` file, which contains user-level information on the 7,500 most popular users of all time. The `download/01-update-add-more-users.R` script adds more users to this file.
 
 ```{r, message=FALSE, warning=FALSE}
 library(tidyverse)
@@ -27,16 +27,57 @@ users <- readRDS("download/users.rds")
 glimpse(users)
 ```
 
-The information contain in the `href` variable was then used to scrape ratings-per user with the `download/01-get-ratings-from-users.R` script. This data is stored in the `user_ratings.rds` file.
+The information contain in the `href` variable was then used to scrape ratings-per user with the `download/02-get-ratings-from-users.R` script. This data is stored in the `user_ratings.rds` file.
 
 ```{r}
 user_ratings <- readRDS("download/user_ratings.rds")
 glimpse(user_ratings)
 ```
 
+`3-get-additional-movie-info.R` creates a variety of datasets.
+
+-   The `metadata.rds` file contains additional information.
+
+```{r}
+metadata <- read_rds("download/metadata.rds")
+glimpse(metadata)
+```
+
+The `crew.rds` file
+
+```{r}
+crew <- read_rds("download/crew.rds")
+glimpse(crew)
+```
+
+The `cast.rds` file.
+
+```{r}
+cast <- read_rds("download/cast.rds")
+glimpse(cast)
+```
+
+The `genre.rds` file.
+
+```{r}
+genre <- read_rds("download/genre.rds")
+glimpse(genre)
+```
+
+The `details.rds` file. This file is slightly more complex because it's stored as a nested data frame---i.e., some movies are made by multiple studios, contain multiple spoken languages, etc.
+
+```{r}
+details <- read_rds("download/details.rds")
+
+glimpse(details)
+```
+
+
+## Descriptive Statistics
+
 **Number of movies:**
 
-*Note, movies with two raters or less were removed.*
+*Note, movies with less than 10 movies were removed.*
 
 ```{r}
 length(unique(user_ratings$data_film_slug))
@@ -44,16 +85,18 @@ length(unique(user_ratings$data_film_slug))
 
 **Number of users:**
 
+*Note, user with less than 10 movies were removed.*
+
 ```{r}
 length(unique(user_ratings$href))
 ```
 
-*Note. This should be roughly equal to 7500. As of `r format(Sys.Date(), "%B %d %Y")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users in our sample. The missing users are probably due to the fact that: (1) they deleted their accounts between sampling and collection, (2) they're active users but don't actually rate movies, or (3) they have only rated movies that are too niche (i.e., no other two users in the sample rated the same movie).*
+*Note. As of `r format(Sys.Date(), "%B %d %Y")`, the number of users with data represents `r scales::percent(length(unique(user_ratings$href)) / nrow(users), accuracy = 0.01)` of the total users in our sample. The missing users are probably due to the fact that: (1) they deleted their accounts between sampling and collection, (2) they're active users but don't actually rate movies, or (3) they have only rated movies that are too niche (i.e., no other ten users in the sample rated the same movie).*
 
 **Count of movies rated by users (example):**
 
 ```{r movie-raters, message=FALSE, warning=FALSE}
-theme_set(theme_light())
+theme_set(theme_light() + theme(strip.background = element_rect(fill = "#5C5C5C")))
 
 user_ratings |> 
   count(data_film_slug) |> 
@@ -74,25 +117,21 @@ user_ratings |>
   scale_x_log10(labels = scales::comma) 
 ```
 
-
 **A sample of movie ratings (example):**
 
 ```{r movie-ratings, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
-metadata <- read_rds("download/metadata.rds")
-
 user_ratings |> 
   nest(data = !data_film_slug) |> 
   mutate(n = map_dbl(data, nrow)) |> 
   slice_max(n = 36, order_by = n) |> 
   unnest(cols = "data") |> 
-  left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
-  mutate(alt = fct_reorder(alt, -n)) |>
+  left_join(select(metadata, data_film_slug, title), by = "data_film_slug") |> 
+  mutate(title = fct_reorder(title, -n)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 4) +
+  facet_wrap(~title, ncol = 4) +
   scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
-
 **Polarizing movies (example):**
 
 ```{r polarizing, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
@@ -104,44 +143,54 @@ polarizing <- user_ratings |>
 
 user_ratings |> 
   filter(data_film_slug %in% polarizing$data_film_slug) |> 
-  left_join(select(metadata, data_film_slug, alt), by = "data_film_slug") |> 
-  mutate(alt = fct_reorder(alt, .x = rating, .fun = var, .desc = TRUE)) |>
+  left_join(select(metadata, data_film_slug, title), by = "data_film_slug") |> 
+  mutate(title = fct_reorder(title, .x = rating, .fun = var, .desc = TRUE)) |>
   ggplot(aes(rating)) + 
   geom_bar(width = 1/5) + 
-  facet_wrap(~alt, ncol = 4) +
+  facet_wrap(~title, ncol = 4) +
   scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
 
-**How does the rating of movies of our sample of users compare to the overall ratings?**
+**Duration (in mins)**
 
-*Note. I'm only comparing movies with 10 raters or more.*
-
-```{r comparison, warning=FALSE, message=FALSE}
-user_ratings |> 
-  inner_join(metadata)  |> 
-  group_by(data_film_slug, alt) |> 
-  filter(n() >= 10) |> 
-  summarize(
-    all_avg = unique(data_average_rating*2), ## make ratings compatible
-    sample_avg = mean(rating), 
-    sample_size = n()
-  ) |> 
-  ggplot(aes(all_avg, sample_avg)) + 
-  geom_point(aes(color = log(sample_size)), alpha = 1/5) + 
-  geom_smooth(method = "lm") + 
-  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
-  ylim(1, 10) + xlim(1, 10) + 
-  theme(legend.position = "bottom") +
-  scale_color_viridis_c() +
-  scale_x_continuous(breaks = 1:10, labels = 1:10) +
-  scale_y_continuous(breaks = 1:10, labels = 1:10)
+```{r duration}
+metadata |> 
+  filter(!is.na(year)) |> 
+  mutate(decade = factor(year - (year %% 10))) |> 
+  ggplot(aes(decade, duration)) +
+  stat_summary(fun.data = mean_se, fun.args = list(mult = 2), pch = 21, size = 1/4)
 ```
 
-Every movie under the red line of equality was rated higher by the full population of users; every movie over the line of equality was rated higher by the sample of popular users. Looks good!
+**Cast**
+
+```{r}
+cast |> 
+  count(actor_href, sort = TRUE)
+```
+
+**A sample of western movie posters**
+
+```{r posters}
+library(magick)
+
+western <- genre |> 
+  filter(genre == "western") |> 
+  left_join(metadata)
+
+poster_files <- dir("download/movie-pics", full.names = TRUE)
+poster_subset <- glue::glue("download/movie-pics/{western$data_film_id}.jpg")
+index <- which(str_detect(poster_files, paste(poster_subset, collapse = "|")))
+
+sample(poster_files[index], 5) |> 
+  image_read() |> 
+  image_scale("x500") |> 
+  image_append()
+```
+
 
 ------------------------------------------------------------------------
 
-*We should also add other types of metadata per movie, like date and genre. We can also extract network data (i.e., who among the users follows who), but I wouldn't know how to use that...* 
+*We should also extract network data (i.e., who among the users follows who), but I wouldn't know how to use that...* 
 
 *Note, there's currently an API in beta. We should consider applying for this so that the data becomes "legal."*
 
