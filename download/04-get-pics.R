@@ -2,6 +2,7 @@
 # packages ----------------------------------------------------------------
 
 library(tidyverse)
+library(furrr)
 library(glue)
 library(progress)
 
@@ -25,12 +26,15 @@ lookup_id <- read_rds("download/user_ratings.rds") |>
   mutate_all(as.character) |> ## beware: integers -> characters
   deframe()
 
-files <- dir("download/movie-files/", full.names = TRUE)
+plan(multisession, workers = parallel::detectCores() - 1L)
 
-df <- map_df(files, function(x) {
+files <- dir("download/movie-files", full.names = TRUE)
+
+df <- furrr::future_map_dfr(files, function(x) {
     out <- read_rds(x)
     return(list(slug = out[["data_film_slug"]], pic_url = out[["poster"]]))
   }) |> 
+  filter(slug %in% names(lookup_id)) |> 
   mutate(data_film_id = lookup_id[slug]) |> 
   mutate(pic_url = modify_resize(pic_url)) 
 

@@ -180,7 +180,7 @@ metadata <- map_dfr(output, \(x) {
   }) |> 
   mutate(duration = as.integer(readr::parse_number(duration))) |> 
   filter(data_film_slug %in% df$data_film_slug) |> 
-  left_join(df) |> 
+  inner_join(df) |> 
   mutate(data_film_id = as.integer(data_film_id))
 
 readr::write_rds(metadata, "download/metadata.rds", compress = "gz")
