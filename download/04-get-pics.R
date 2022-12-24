@@ -55,7 +55,7 @@ while (length(left) > 0) {
   left <- left[-which(left %in% x)] ## int. subset
   
   pb$tick()
-  Sys.sleep(runif(1, 1, 4))
+  Sys.sleep(runif(1, 0.5, 1))
   
 }
 

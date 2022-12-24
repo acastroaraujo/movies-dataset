@@ -35,7 +35,7 @@ scraper_following <- function(user) {
     output <- append(output, list(el))
     
     cat(glue::glue("{user}: page {n}\r"))
-    Sys.sleep(runif(1, 1, 2))
+    Sys.sleep(runif(1, 0.3, 1))
     n <- n + 1
     
   }
@@ -50,9 +50,10 @@ scraper_following <- function(user) {
 outfolder <- "download/user-following/"
 if (!dir.exists(outfolder)) dir.create(outfolder)
 
-df <- read_rds("download/users.rds") |> 
+df <- read_rds("download/user_ratings.rds") |> 
+  distinct(href) |> 
   mutate(id = str_remove_all(href, "/")) 
-
+  
 done <- str_replace(dir(outfolder), "\\.rds$", "")
 left <- setdiff(df$id, done)
 
@@ -70,3 +71,34 @@ while (length(left) > 0) {
   Sys.sleep(runif(1, 1, 3))
   
 }
+
+
+# debug -------------------------------------------------------------------
+
+files <- dir(outfolder, full.names = TRUE)
+output <- map(files, readr::read_rds)
+
+error_index <- output |> 
+  map_lgl(\(x) any(class(x) == "try-error")) 
+
+message("errors: ", sum(error_index))
+
+if (sum(error_index) > 0) {
+  file.remove(files[error_index])
+  output <- output[!error_index]
+}
+
+
+# organize ----------------------------------------------------------------
+
+user_levels <- levels(df$href)
+
+el <- bind_rows(output) |> 
+  mutate(from = glue("/{from}/")) |> 
+  filter(to %in% df$href) |> 
+  mutate_all(factor, levels = user_levels)
+
+readr::write_rds(el, "download/user_following.rds", compress = "gz")
+
+
+
