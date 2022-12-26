@@ -72,6 +72,19 @@ details <- read_rds("download/details.rds")
 glimpse(details)
 ```
 
+The `05-get-movie-histograms.R` scrapes the ratings associated with the full population of users. This creates the `movie_ratings.rds` file.
+
+```{r}
+movie_ratings <- read_rds("download/movie_ratings.rds")
+glimpse(movie_ratings)
+```
+
+Finally, the `06-get-user-following.R` gets the social networks among the users in the sample. This file is weird because the "following" behavior across users varies a lot (although it's not unlike a Twitter network)! In short, the `user_following.rds` files is an edgelist that can be paired with the `users.rds` data on each node.
+
+```{r}
+following <- read_rds("download/user_following.rds")
+glimpse(following)
+```
 
 ## Descriptive Statistics
 
@@ -185,8 +198,62 @@ sample(poster_files[index], 5) |>
   image_read() |> 
   image_scale("x500") |> 
   image_append()
+
+sample(poster_files[index], 5) |> 
+  image_read() |> 
+  image_scale("x500") |> 
+  image_append()
+
+sample(poster_files[index], 5) |> 
+  image_read() |> 
+  image_scale("x500") |> 
+  image_append()
 ```
 
+**Relationship between "degree" of users and various features**
+
+```{r}
+full_join(
+  users,
+  count(following, to, name = "degree"),
+  by = c("href" = "to")
+) |> 
+  filter(!is.na(degree)) |> 
+  pivot_longer(reviews:likes, names_to = "variable", values_to = "number") |> 
+  ggplot(aes(number, degree)) + 
+  geom_point() + 
+  geom_smooth() +
+  scale_y_log10() + 
+  scale_x_log10() + 
+  facet_wrap(~variable)
+```
+
+**How does the rating of movies of our sample of users compare to the overall ratings?**
+
+*Note. I'm only comparing movies with 10 raters or more.*
+
+```{r comparison, warning=FALSE, message=FALSE}
+inner_join(
+  movie_ratings |>  ## full histogram 
+    group_by(data_film_slug) |> 
+    summarize(avg = weighted.mean(rating, n)),
+  user_ratings |> 
+    group_by(data_film_slug) |> 
+    summarize(sample_avg = mean(rating), sample_size = n())
+) |> 
+  ggplot(aes(avg, sample_avg)) + 
+  geom_point(aes(color = log10(sample_size)), alpha = 1/2, shape = ".") + 
+  geom_smooth(method = "lm") + 
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
+  ylim(1, 10) + xlim(1, 10) + 
+  theme(legend.position = "bottom") +
+  scale_color_viridis_c(option = "mako", direction = -1) +
+  scale_x_continuous(breaks = 1:10, labels = 1:10) +
+  scale_y_continuous(breaks = 1:10, labels = 1:10)
+
+```
+
+Every movie under the red line of equality was rated lower by the sample of popular users; every movie over the line of equality was rated lower by the full population of users. Looks good!
 
 ------------------------------------------------------------------------
 

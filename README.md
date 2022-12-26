@@ -45,7 +45,7 @@ glimpse(user_ratings)
 
 `3-get-additional-movie-info.R` creates a variety of datasets.
 
--   The `metadata.rds` file contains additional information.
+- The `metadata.rds` file contains additional information.
 
 ``` r
 metadata <- read_rds("download/metadata.rds")
@@ -114,6 +114,35 @@ glimpse(details)
 #> $ `Spoken Language` <named list> "/films/language/no-spoken-language/", <NULL>…
 ```
 
+The `05-get-movie-histograms.R` scrapes the ratings associated with the
+full population of users. This creates the `movie_ratings.rds` file.
+
+``` r
+movie_ratings <- read_rds("download/movie_ratings.rds")
+glimpse(movie_ratings)
+#> Rows: 802,210
+#> Columns: 4
+#> $ rating         <int> 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, …
+#> $ n              <int> 7, 5, 5, 31, 57, 170, 82, 68, 6, 39, 0, 2, 3, 8, 15, 44…
+#> $ data_film_slug <fct> /film/london-after-midnight/, /film/london-after-midnig…
+#> $ data_film_id   <int> 10, 10, 10, 10, 10, 10, 10, 10, 10, 10, 100002, 100002,…
+```
+
+Finally, the `06-get-user-following.R` gets the social networks among
+the users in the sample. This file is weird because the “following”
+behavior across users varies a lot (although it’s not unlike a Twitter
+network)! In short, the `user_following.rds` files is an edgelist that
+can be paired with the `users.rds` data on each node.
+
+``` r
+following <- read_rds("download/user_following.rds")
+glimpse(following)
+#> Rows: 984,864
+#> Columns: 2
+#> $ from <fct> /__lobster__/, /__lobster__/, /__lobster__/, /__lobster__/, /__lo…
+#> $ to   <fct> /thomasflight/, /fares1992/, /firstshowing/, /zshevich/, /kurstbo…
+```
+
 ## Descriptive Statistics
 
 **Number of movies:**
@@ -134,7 +163,7 @@ length(unique(user_ratings$href))
 #> [1] 7794
 ```
 
-*Note. As of December 14 2022, the number of users with data represents
+*Note. As of December 25 2022, the number of users with data represents
 97.72% of the total users in our sample. The missing users are probably
 due to the fact that: (1) they deleted their accounts between sampling
 and collection, (2) they’re active users but don’t actually rate movies,
@@ -168,7 +197,7 @@ user_ratings |>
 #> `stat_bin()` using `bins = 30`. Pick better value with `binwidth`.
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-11-1.png)<!-- -->
+![](README_files/figure-gfm/unnamed-chunk-13-1.png)<!-- -->
 
 **A sample of movie ratings (example):**
 
@@ -267,6 +296,81 @@ sample(poster_files[index], 5) |>
 
 <img src="README_files/figure-gfm/posters-1.png" width="1665" />
 
+``` r
+
+sample(poster_files[index], 5) |> 
+  image_read() |> 
+  image_scale("x500") |> 
+  image_append()
+```
+
+<img src="README_files/figure-gfm/posters-2.png" width="1665" />
+
+``` r
+
+sample(poster_files[index], 5) |> 
+  image_read() |> 
+  image_scale("x500") |> 
+  image_append()
+```
+
+<img src="README_files/figure-gfm/posters-3.png" width="1670" />
+
+**Relationship between “degree” of users and various features**
+
+``` r
+full_join(
+  users,
+  count(following, to, name = "degree"),
+  by = c("href" = "to")
+) |> 
+  filter(!is.na(degree)) |> 
+  pivot_longer(reviews:likes, names_to = "variable", values_to = "number") |> 
+  ggplot(aes(number, degree)) + 
+  geom_point() + 
+  geom_smooth() +
+  scale_y_log10() + 
+  scale_x_log10() + 
+  facet_wrap(~variable)
+#> Warning: Transformation introduced infinite values in continuous x-axis
+#> Transformation introduced infinite values in continuous x-axis
+#> `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
+#> Warning: Removed 369 rows containing non-finite values (`stat_smooth()`).
+```
+
+![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+
+**How does the rating of movies of our sample of users compare to the
+overall ratings?**
+
+*Note. I’m only comparing movies with 10 raters or more.*
+
+``` r
+inner_join(
+  movie_ratings |>  ## full histogram 
+    group_by(data_film_slug) |> 
+    summarize(avg = weighted.mean(rating, n)),
+  user_ratings |> 
+    group_by(data_film_slug) |> 
+    summarize(sample_avg = mean(rating), sample_size = n())
+) |> 
+  ggplot(aes(avg, sample_avg)) + 
+  geom_point(aes(color = log10(sample_size)), alpha = 1/2, shape = ".") + 
+  geom_smooth(method = "lm") + 
+  geom_abline(slope = 1, intercept = 0, color = "red", linetype = "dashed") + 
+  ylim(1, 10) + xlim(1, 10) + 
+  theme(legend.position = "bottom") +
+  scale_color_viridis_c(option = "mako", direction = -1) +
+  scale_x_continuous(breaks = 1:10, labels = 1:10) +
+  scale_y_continuous(breaks = 1:10, labels = 1:10)
+```
+
+![](README_files/figure-gfm/comparison-1.png)<!-- -->
+
+Every movie under the red line of equality was rated lower by the sample
+of popular users; every movie over the line of equality was rated lower
+by the full population of users. Looks good!
+
 ------------------------------------------------------------------------
 
 *We should also extract network data (i.e., who among the users follows
@@ -275,5 +379,5 @@ who), but I wouldn’t know how to use that…*
 *Note, there’s currently an API in beta. We should consider applying for
 this so that the data becomes “legal.”*
 
--   <https://letterboxd.com/api-beta/>
--   <https://api-docs.letterboxd.com/>
+- <https://letterboxd.com/api-beta/>
+- <https://api-docs.letterboxd.com/>
