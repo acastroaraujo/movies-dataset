@@ -212,7 +212,7 @@ sample(poster_files[index], 5) |>
 
 **Relationship between "degree" of users and various features**
 
-```{r}
+```{r degree}
 full_join(
   users,
   count(following, to, name = "degree"),
@@ -256,8 +256,6 @@ inner_join(
 Every movie under the red line of equality was rated lower by the sample of popular users; every movie over the line of equality was rated lower by the full population of users. Looks good!
 
 ------------------------------------------------------------------------
-
-*We should also extract network data (i.e., who among the users follows who), but I wouldn't know how to use that...* 
 
 *Note, there's currently an API in beta. We should consider applying for this so that the data becomes "legal."*
 

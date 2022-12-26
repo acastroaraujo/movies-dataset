@@ -314,7 +314,7 @@ sample(poster_files[index], 5) |>
   image_append()
 ```
 
-<img src="README_files/figure-gfm/posters-3.png" width="1670" />
+<img src="README_files/figure-gfm/posters-3.png" width="1665" />
 
 **Relationship between “degree” of users and various features**
 
@@ -338,7 +338,7 @@ full_join(
 #> Warning: Removed 369 rows containing non-finite values (`stat_smooth()`).
 ```
 
-![](README_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](README_files/figure-gfm/degree-1.png)<!-- -->
 
 **How does the rating of movies of our sample of users compare to the
 overall ratings?**
@@ -372,9 +372,6 @@ of popular users; every movie over the line of equality was rated lower
 by the full population of users. Looks good!
 
 ------------------------------------------------------------------------
-
-*We should also extract network data (i.e., who among the users follows
-who), but I wouldn’t know how to use that…*
 
 *Note, there’s currently an API in beta. We should consider applying for
 this so that the data becomes “legal.”*
