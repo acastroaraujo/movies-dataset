@@ -48,7 +48,7 @@ pb <- progress_bar$new(format = "[:bar] :current/:total (:percent)\n", total = N
 for (n in 1:N) {
   out[[n]] <- try(scraper_user(n))
   pb$tick()
-  Sys.sleep(runif(1, 1, 5))
+  Sys.sleep(runif(1, 1, 3))
 }
 
 error_index <- map_lgl(out, \(x) any(class(x) == "try-error")) 

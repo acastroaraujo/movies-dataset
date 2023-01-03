@@ -113,7 +113,9 @@ df <- read_rds("download/user_ratings.rds") |>
   
 ## use the following to fix the user_ratings file later on.
 ## slug is not as reliable as integer id!
-## but some integer ids might be fishy too..
+## but some integer ids might be fishy too.
+
+# df |> add_count(data_film_id) |> filter(n > 1)
 
 ## names are correct, values are redirected
 
@@ -127,7 +129,8 @@ extra_slugs_duplicated <- c(
   "/film/pinocchio-2022/" = "/film/pinocchio-2022-1/",
   "/film/the-wonderland-2019/" = "/film/birthday-wonderland/",
   "/film/zerograd/" = "/film/city-zero/",
-  "/film/the-switchblade-sisters/" = "/film/switchblade-sisters/"
+  "/film/the-switchblade-sisters/" = "/film/switchblade-sisters/",
+  "/film/memoria-2011/" = "/film/memoria-2021/"
 )
 
 df <- df |> 

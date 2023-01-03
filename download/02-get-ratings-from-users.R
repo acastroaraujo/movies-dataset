@@ -63,7 +63,7 @@ scrape_movie_from_user <- function(user) {
       out[[n]] <- df_n
       
       message(glue("{user}: {n} of {N} pages"))
-      Sys.sleep(runif(1, 1, 2))
+      Sys.sleep(runif(1, 0.5, 2))
       
     }
   }
@@ -113,7 +113,7 @@ while (length(left) > 0) {
   left <- left[-which(left %in% x)] ## int. subset
   
   pb$tick()
-  Sys.sleep(runif(1, 2, 4))
+  Sys.sleep(runif(1, 1, 2))
   
 }
 
@@ -124,9 +124,11 @@ plan(multisession, workers = parallel::detectCores() - 1L)
 
 files <- dir(outfolder, full.names = TRUE)
 output <- furrr::future_map(files, readr::read_rds)
-names(output) <- str_remove(files, "\\.rds$") |> str_remove(outfolder)
 
-error_index <- map_lgl(output, \(x) any(class(x) == "try-error")) 
+names(output) <- stringr::str_remove(files, "\\.rds$") |> 
+  stringr::str_remove(outfolder)
+
+error_index <- purrr::map_lgl(output, \(x) any(class(x) == "try-error")) 
 
 message("errors: ", sum(error_index))
 
