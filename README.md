@@ -18,13 +18,13 @@ file.
 library(tidyverse)
 users <- readRDS("download/users.rds")
 glimpse(users)
-#> Rows: 7,976
+#> Rows: 8,178
 #> Columns: 6
 #> $ name    <chr> "Brendan Michaels", "Adam", "Sergio Muñoz Esquer", "JC13", "Ni…
-#> $ reviews <dbl> 1820, 187, 505, 5455, 1106, 572, 2756, 171, 3525, 1220, 1200, …
-#> $ watched <dbl> 4957, 606, 1699, 4442, 2681, 4470, 5071, 2088, 4353, 3328, 367…
-#> $ lists   <dbl> 164, 1, 29, 374, 52, 340, 29, 8, 55, 107, 199, 159, 8, 7, 40, …
-#> $ likes   <dbl> 28795, 4381, 374, 9475, 1976, 5137, 3360, 2725, 1421, 5627, 53…
+#> $ reviews <dbl> 1820, 187, 505, 5455, 1106, 572, 2756, 171, 1220, 1200, 251, 1…
+#> $ watched <dbl> 4957, 606, 1699, 4442, 2681, 4470, 5071, 2088, 3328, 3673, 407…
+#> $ lists   <dbl> 164, 1, 29, 374, 52, 340, 29, 8, 107, 199, 159, 8, 7, 40, 17, …
+#> $ likes   <dbl> 28795, 4381, 374, 9475, 1976, 5137, 3360, 2725, 5627, 5336, 32…
 #> $ href    <chr> "/jackflowers/", "/witchingay/", "/semunozesqu/", "/jc13/", "/…
 ```
 
@@ -35,7 +35,7 @@ This data is stored in the `user_ratings.rds` file.
 ``` r
 user_ratings <- readRDS("download/user_ratings.rds")
 glimpse(user_ratings)
-#> Rows: 13,541,224
+#> Rows: 13,729,315
 #> Columns: 4
 #> $ href           <fct> /__lobster__/, /__lobster__/, /__lobster__/, /__lobster…
 #> $ data_film_slug <fct> /film/blonde-2022/, /film/pearl-2022/, /film/tar-2022/,…
@@ -50,7 +50,7 @@ glimpse(user_ratings)
 ``` r
 metadata <- read_rds("download/metadata.rds")
 glimpse(metadata)
-#> Rows: 80,295
+#> Rows: 80,768
 #> Columns: 5
 #> $ title          <chr> "London After Midnight", "Pass the Gravy", "Three Darin…
 #> $ data_film_slug <chr> "/film/london-after-midnight/", "/film/pass-the-gravy/"…
@@ -64,7 +64,7 @@ The `crew.rds` file
 ``` r
 crew <- read_rds("download/crew.rds")
 glimpse(crew)
-#> Rows: 824,640
+#> Rows: 827,711
 #> Columns: 4
 #> $ data_film_slug <fct> /film/london-after-midnight/, /film/london-after-midnig…
 #> $ person_href    <chr> "/director/tod-browning/", "/producer/tod-browning/", "…
@@ -77,7 +77,7 @@ The `cast.rds` file.
 ``` r
 cast <- read_rds("download/cast.rds")
 glimpse(cast)
-#> Rows: 1,251,247
+#> Rows: 1,256,675
 #> Columns: 4
 #> $ role           <chr> "Professor Edward C. Burke", "Lucille Balfour", "Sir Ja…
 #> $ actor_href     <fct> /actor/lon-chaney/, /actor/marceline-day/, /actor/henry…
@@ -90,7 +90,7 @@ The `genre.rds` file.
 ``` r
 genre <- read_rds("download/genre.rds")
 glimpse(genre)
-#> Rows: 156,708
+#> Rows: 157,565
 #> Columns: 3
 #> $ data_film_slug <chr> "/film/london-after-midnight/", "/film/london-after-mid…
 #> $ genre_href     <chr> "/films/genre/drama/", "/films/genre/horror/", "/films/…
@@ -105,7 +105,7 @@ studios, contain multiple spoken languages, etc.
 details <- read_rds("download/details.rds")
 
 glimpse(details)
-#> Rows: 80,235
+#> Rows: 80,706
 #> Columns: 5
 #> $ data_film_slug    <chr> "/film/london-after-midnight/", "/film/pass-the-grav…
 #> $ Studio            <named list> "/studio/metro-goldwyn-mayer-1/", "/studio/ha…
@@ -137,7 +137,7 @@ can be paired with the `users.rds` data on each node.
 ``` r
 following <- read_rds("download/user_following.rds")
 glimpse(following)
-#> Rows: 984,864
+#> Rows: 1,024,920
 #> Columns: 2
 #> $ from <fct> /__lobster__/, /__lobster__/, /__lobster__/, /__lobster__/, /__lo…
 #> $ to   <fct> /thomasflight/, /fares1992/, /firstshowing/, /zshevich/, /kurstbo…
@@ -151,7 +151,7 @@ glimpse(following)
 
 ``` r
 length(unique(user_ratings$data_film_slug))
-#> [1] 80305
+#> [1] 80775
 ```
 
 **Number of users:**
@@ -160,11 +160,11 @@ length(unique(user_ratings$data_film_slug))
 
 ``` r
 length(unique(user_ratings$href))
-#> [1] 7794
+#> [1] 7990
 ```
 
-*Note. As of December 25 2022, the number of users with data represents
-97.72% of the total users in our sample. The missing users are probably
+*Note. As of January 03 2023, the number of users with data represents
+97.70% of the total users in our sample. The missing users are probably
 due to the fact that: (1) they deleted their accounts between sampling
 and collection, (2) they’re active users but don’t actually rate movies,
 or (3) they have only rated movies that are too niche (i.e., no other
@@ -215,8 +215,9 @@ user_ratings |>
   scale_x_continuous(breaks = 1:10, labels = 1:10)
 ```
 
-![](README_files/figure-gfm/movie-ratings-1.png)<!-- --> **Polarizing
-movies (example):**
+![](README_files/figure-gfm/movie-ratings-1.png)<!-- -->
+
+**Polarizing movies (example):**
 
 ``` r
 polarizing <- user_ratings |> 
@@ -245,7 +246,7 @@ metadata |>
   mutate(decade = factor(year - (year %% 10))) |> 
   ggplot(aes(decade, duration)) +
   stat_summary(fun.data = mean_se, fun.args = list(mult = 2), pch = 21, size = 1/4)
-#> Warning: Removed 170 rows containing non-finite values (`stat_summary()`).
+#> Warning: Removed 179 rows containing non-finite values (`stat_summary()`).
 ```
 
 ![](README_files/figure-gfm/duration-1.png)<!-- -->
@@ -255,11 +256,11 @@ metadata |>
 ``` r
 cast |> 
   count(actor_href, sort = TRUE)
-#> # A tibble: 461,214 × 2
+#> # A tibble: 462,663 × 2
 #>    actor_href                   n
 #>    <fct>                    <int>
-#>  1 /actor/mel-blanc/          738
-#>  2 /actor/bess-flowers/       404
+#>  1 /actor/mel-blanc/          743
+#>  2 /actor/bess-flowers/       405
 #>  3 /actor/frank-welker/       277
 #>  4 /actor/pinto-colvig/       201
 #>  5 /actor/clarence-nash/      199
@@ -267,8 +268,8 @@ cast |>
 #>  7 /actor/john-carradine/     178
 #>  8 /actor/billy-bletcher/     169
 #>  9 /actor/danny-trejo/        165
-#> 10 /actor/samuel-l-jackson/   164
-#> # … with 461,204 more rows
+#> 10 /actor/samuel-l-jackson/   165
+#> # … with 462,653 more rows
 ```
 
 **A sample of western movie posters**
@@ -304,7 +305,7 @@ sample(poster_files[index], 5) |>
   image_append()
 ```
 
-<img src="README_files/figure-gfm/posters-2.png" width="1665" />
+<img src="README_files/figure-gfm/posters-2.png" width="1674" />
 
 ``` r
 
@@ -335,7 +336,7 @@ full_join(
 #> Warning: Transformation introduced infinite values in continuous x-axis
 #> Transformation introduced infinite values in continuous x-axis
 #> `geom_smooth()` using method = 'gam' and formula = 'y ~ s(x, bs = "cs")'
-#> Warning: Removed 369 rows containing non-finite values (`stat_smooth()`).
+#> Warning: Removed 389 rows containing non-finite values (`stat_smooth()`).
 ```
 
 ![](README_files/figure-gfm/degree-1.png)<!-- -->
